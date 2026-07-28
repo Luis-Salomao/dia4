@@ -15,6 +15,13 @@
       "when": 1785267225671,
       "tag": "0001_greedy_mongoose",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785269499766,
+      "tag": "0002_true_junta",
+      "breakpoints": true
     }
   ]
 }
