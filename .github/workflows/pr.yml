@@ -1,0 +1,86 @@
+name: PR Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: pr-${{ github.event.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    env:
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+      BRANCH: pr-${{ github.event.number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - name: Criar ou reutilizar a branch Neon
+        id: neon
+        run: |
+          if npx neonctl branches get "$BRANCH" --project-id "$NEON_PROJECT_ID" >/dev/null 2>&1; then
+            echo "branch $BRANCH ja existe, reutilizando"
+          else
+            npx neonctl branches create \
+              --project-id "$NEON_PROJECT_ID" \
+              --name "$BRANCH" \
+              --expires-at "$(date -u -d '+7 days' +%Y-%m-%dT%H:%M:%SZ)"
+          fi
+          URL=$(npx neonctl connection-string "$BRANCH" --project-id "$NEON_PROJECT_ID" --pooled)
+          echo "::add-mask::$URL"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Aplicar migrations
+        env:
+          DATABASE_URL: ${{ steps.neon.outputs.url }}
+        run: npx drizzle-kit migrate
+
+      - name: Seed
+        env:
+          DATABASE_URL: ${{ steps.neon.outputs.url }}
+        run: npm run seed
+
+      - name: Testes de integracao
+        env:
+          DATABASE_URL: ${{ steps.neon.outputs.url }}
+        run: npm test
+
+      - run: npm run build
+
+      - name: Publicar versao de preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DATABASE_URL: ${{ steps.neon.outputs.url }}
+        run: |
+          jq -n --arg u "$DATABASE_URL" '{DATABASE_URL:$u}' > secrets.json
+          npx wrangler versions upload \
+            --preview-alias "$BRANCH" \
+            --secrets-file secrets.json \
+            --message "PR #${{ github.event.number }}"
+          rm secrets.json
+
+      - name: Comentar a URL no PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          printf '**Preview:** https://%s-dia4.mbo.workers.dev\n\nBanco isolado na branch Neon `%s` (migrations aplicadas, seed rodado).\nCommit: `%s`\n' \
+            "$BRANCH" "$BRANCH" "$SHA" > comment.md
+          gh pr comment ${{ github.event.number }} --body-file comment.md --edit-last --create-if-none
