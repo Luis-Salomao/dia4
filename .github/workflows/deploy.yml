@@ -40,8 +40,17 @@ jobs:
 
       - run: npm run build
 
+      # O --secrets-file e obrigatorio aqui, nao opcional. Os secrets do Worker
+      # sao compartilhados entre versoes: um `versions upload --secrets-file` de
+      # um PR grava a DATABASE_URL daquela branch no Worker, e um `wrangler deploy`
+      # sem --secrets-file herda esse valor. Como a branch do PR e apagada no
+      # cleanup, producao passaria a apontar para um banco inexistente.
       - name: Deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx wrangler deploy
+          DATABASE_URL: ${{ steps.neon.outputs.url }}
+        run: |
+          jq -n --arg u "$DATABASE_URL" '{DATABASE_URL:$u}' > secrets.json
+          npx wrangler deploy --secrets-file secrets.json
+          rm secrets.json
