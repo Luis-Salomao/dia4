@@ -17,13 +17,13 @@ export default function App() {
   if (!data) return <p>Carregando…</p>;
 
   return (
-    <main style={{ fontFamily: "system-ui", padding: "2rem" }}>
-      <h1>dia4</h1>
+    <main style={{ fontFamily: "system-ui", padding: "2rem", background: "#1e1b4b", color: "#e0e7ff", minHeight: "100vh" }}>
+      <h1 style={{ color: "#a78bfa" }}>dia4</h1>
       <table cellPadding={8} style={{ borderCollapse: "collapse" }}>
         <thead>
           <tr>
             {data.columns.map((c) => (
-              <th key={c} style={{ borderBottom: "2px solid #333", textAlign: "left" }}>
+              <th key={c} style={{ borderBottom: "2px solid #a78bfa", textAlign: "left", color: "#c4b5fd" }}>
                 {c}
               </th>
             ))}
@@ -33,7 +33,7 @@ export default function App() {
           {data.rows.map((row, i) => (
             <tr key={i}>
               {data.columns.map((c) => (
-                <td key={c} style={{ borderBottom: "1px solid #ccc" }}>
+                <td key={c} style={{ borderBottom: "1px solid #4c1d95" }}>
                   {String(row[c] ?? "")}
                 </td>
               ))}
