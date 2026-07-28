@@ -21,6 +21,42 @@ describe("GET /api/students", () => {
     expect(body.rows.map((r) => (r as { name: string }).name)).toContain("Luis");
   });
 
+  it("cria um estudante via POST e ele aparece na listagem", async () => {
+    const res = await app.request(
+      "/api/students",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "Teste", campus: "Garopaba", course: "TSI" }),
+      },
+      env,
+    );
+    expect(res.status).toBe(201);
+    const criado = (await res.json()) as { id: number; name: string };
+    expect(criado.name).toBe("Teste");
+
+    // O finally garante que a linha nao sobra e quebra a contagem do teste do seed.
+    try {
+      const { body } = await get();
+      expect(body.rows.some((r) => (r as { id: number }).id === criado.id)).toBe(true);
+    } finally {
+      await neon(env.DATABASE_URL)`DELETE FROM students WHERE id = ${criado.id}`;
+    }
+  });
+
+  it("rejeita POST sem name com 400", async () => {
+    const res = await app.request(
+      "/api/students",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ campus: "Garopaba" }),
+      },
+      env,
+    );
+    expect(res.status).toBe(400);
+  });
+
   it("as colunas declaradas batem com as colunas reais do postgres", async () => {
     const { body } = await get();
     const sql = neon(env.DATABASE_URL);
