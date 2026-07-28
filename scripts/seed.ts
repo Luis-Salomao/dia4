@@ -6,9 +6,9 @@ const db = drizzle(neon(process.env.DATABASE_URL!));
 
 await db.delete(students);
 await db.insert(students).values([
-  { name: "Luis", campus: "Garopaba", course: "TSI" },
-  { name: "Maria", campus: "Florianópolis", course: "ADS" },
-  { name: "João", campus: "Garopaba", course: "TSI" },
+  { name: "Luis", campus: "Garopaba", course: "TSI", phone: "48 99999-0001" },
+  { name: "Maria", campus: "Florianópolis", course: "ADS", phone: "48 99999-0002" },
+  { name: "João", campus: "Garopaba", course: "TSI", phone: "48 99999-0003" },
 ]);
 
 console.log("seed: 3 registros");
